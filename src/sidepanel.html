@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locator X</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="compact.css">
+</head>
+<body>
+    <div id="not-supported-banner" style="display:none;"></div>
+
+    <div class="container" style="display:none;">
+        <header class="header">
+            <h1 class="title">Locator X</h1>
+            <p class="subtitle">Locator Generator & Manager</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Capture Mode & Theme Section -->
+            <section class="options-section card">
+                <div class="section-header">
+                    <h2 class="section-title">Options & Status</h2>
+                </div>
+                <div class="options-grid">
+                    <div class="control-item">
+                        <label class="switch" for="captureModeToggle">
+                            <input type="checkbox" id="captureModeToggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="control-label" id="modeText">Capture: OFF (Ctrl+Shift+X)</span>
+                    </div>
+
+                    <div class="control-item">
+                        <label class="switch" for="themeToggle">
+                            <input type="checkbox" id="themeToggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="control-label" id="themeText">Theme: Light</span>
+                    </div>
+                    <div class="status-bar" id="statusBar">  </div>
+                </div>
+            </section>
+
+            <!-- Evaluate & Test Section -->
+            <section class="input-evaluation-section card">
+                <div class="section-header">
+                    <h2 class="section-title">Evaluate & Test Locators</h2>
+                    <button id="xpathHelpToggle" class="help-toggle" title="XPath Quick Reference" style="background: none; border: 1px solid #ccc; border-radius: 3px; margin-top: -6px; font-size: 10px; cursor: pointer;">❓</button>
+
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label for="locatorInput" class="input-label">Enter Locator (XPath, CSS, ID, Name):</label>
+                </div>
+                
+                <div class="input-group-with-button" style="position:relative;">
+                    <input type="text" id="locatorInput" placeholder="locator..." class="form-control xpath-input">
+                    <button class="clear-button-inline" id="clearLocatorButton" title="Clear Locator">
+                        <svg class="icon-clear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                    <!-- Locator Help Panel -->
+                    <div id="xpathHelp" class="xpath-help" style="display:none;">
+                        <div class="help-navbar">
+                            <button class="help-nav-btn active" data-type="xpath">XPath</button>
+                            <button class="help-nav-btn" data-type="css">CSS</button>
+                            <button class="help-nav-btn" data-type="playwright">Playwright</button>
+                            <button class="help-nav-btn" data-type="general">General</button>
+                        </div>
+                        <div class="help-content">
+                            <div id="xpath-help" class="help-tab active">
+                                <div class="help-section">
+                                    <strong>📚 XPath Basics:</strong><br>
+                                    <code>//div</code> - Any div element anywhere<br>
+                                    <code>/html/body/div</code> - Absolute path from root<br>
+                                    <code>//input[@id='name']</code> - Input with specific ID<br>
+                                    <code>//span[text()='Click']</code> - Span with exact text<br>
+                                </div>
+                                <div class="help-section">
+                                    <strong>🎯 Attribute Matching:</strong><br>
+                                    <code>[contains(@class,'btn')]</code> - Partial class match<br>
+                                    <code>[starts-with(@id,'user')]</code> - ID starts with 'user'<br>
+                                    <code>[@data-test='login']</code> - Data attribute match<br>
+                                </div>
+                                <div class="help-section">
+                                    <strong>🔗 Navigation Axes:</strong><br>
+                                    <code>/following-sibling::div</code> - Next sibling div<br>
+                                    <code>/parent::form</code> - Parent form element<br>
+                                    <code>/ancestor::table</code> - Ancestor table<br>
+                                </div>
+                            </div>
+                            <div id="css-help" class="help-tab">
+                                <div class="help-section">
+                                    <strong>🎨 CSS Basics:</strong><br>
+                                    <code>#myId</code> - Element with ID<br>
+                                    <code>.myClass</code> - Element with class<br>
+                                    <code>div.container</code> - Div with class<br>
+                                    <code>input[type="text"]</code> - Input by type<br>
+                                </div>
+                                <div class="help-section">
+                                    <strong>🔗 CSS Combinators:</strong><br>
+                                    <code>div > p</code> - Direct child<br>
+                                    <code>div p</code> - Any descendant<br>
+                                    <code>div + p</code> - Adjacent sibling<br>
+                                    <code>div ~ p</code> - General sibling<br>
+                                </div>
+                                <div class="help-section">
+                                    <strong>🎯 CSS Attributes:</strong><br>
+                                    <code>[data-test="login"]</code> - Exact match<br>
+                                    <code>[class*="btn"]</code> - Contains<br>
+                                    <code>[href^="https"]</code> - Starts with<br>
+                                    <code>[src$=".jpg"]</code> - Ends with<br>
+                                </div>
+                            </div>
+                            <div id="playwright-help" class="help-tab">
+                                <div class="help-section">
+                                    <strong>🎭 Playwright Locators:</strong><br>
+                                    <code>text=Login</code> - By visible text<br>
+                                    <code>role=button</code> - By ARIA role<br>
+                                    <code>label=Username</code> - By label text<br>
+                                    <code>placeholder=Search</code> - By placeholder<br>
+                                </div>
+                                <div class="help-section">
+                                    <strong>🎯 Advanced Playwright:</strong><br>
+                                    <code>text=/Login|Sign in/</code> - Regex text<br>
+                                    <code>role=button[name="Submit"]</code> - Role with name<br>
+                                    <code>data-testid=login-btn</code> - Test ID<br>
+                                    <code>css=.btn-primary</code> - CSS fallback<br>
+                                </div>
+                            </div>
+                            <div id="general-help" class="help-tab">
+                                <div class="help-section">
+                                    <strong>🚀 Best Practices:</strong><br>
+                                    <span class="tip-good">✅ Use data-testid attributes</span><br>
+                                    <span class="tip-good">✅ Prefer semantic locators</span><br>
+                                    <span class="tip-warning">⚠️ Avoid position-based selectors</span><br>
+                                    <span class="tip-bad">❌ Don't use generated IDs</span><br>
+                                </div>
+                                <div class="help-section">
+                                    <strong>🛠️ Common Patterns:</strong><br>
+                                    <code>[data-test="submit-btn"]</code> - Test attribute<br>
+                                    <code>button:contains("Save")</code> - Button text<br>
+                                    <code>input[placeholder*="email"]</code> - Partial placeholder<br>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Suggestions dropdown -->
+                    <div id="xpathSuggestions" class="suggestions-dropdown" style="display:none;"></div>
+                </div>
+    
+                <span class="match-count" id="matchCount">0 matches</span>
+                
+                <!-- Save Section -->
+                <div class="save-evaluated-section">
+                    <input type="text" id="evaluatedLocatorNameInput" placeholder="Name (optional)" title="Give this locator a memorable name">
+                    <button class="save-button primary-button" id="saveEvaluatedLocatorButton" title="Save Current Evaluated Locator">Save</button>
+                </div>
+            </section>
+
+            <!-- Generated Locators Section -->
+            <section class="result-section card">
+                <div class="section-header">
+                    <h2 class="section-title">Generated Locators</h2>
+                    <button id="hierarchyDropdownToggle" class="hierarchy-dropdown-toggle" title="Element Hierarchy" style="display:block;">🌳</button>
+                </div>
+                <div id="hierarchyDropdown" class="hierarchy-dropdown" style="display:none;">
+                    <div class="hierarchy-controls">
+                        <div class="hierarchy-actions">
+                            <button id="collapseAllBtn" class="hierarchy-btn">Collapse All</button>
+                            <button id="expandAllBtn" class="hierarchy-btn">Expand All</button>
+                        </div>
+                    </div>
+                    <div id="hierarchyTree" class="hierarchy-tree"></div>
+                </div>
+                <table class="locator-table">
+                  <tbody>
+                    <tr>
+                      <td class="output-label col-label-cell">ID:</td>
+                      <td class="col-locator-cell"><span id="idLocator"></span></td>
+                      <td class="col-match-count-cell"><span id="idMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="idBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyIdLocatorButton" aria-label="Copy ID" title="Copy ID">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">Name:</td>
+                      <td class="col-locator-cell"><span id="nameLocator"></span></td>
+                      <td class="col-match-count-cell"><span id="nameMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="nameBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyNameLocatorButton" aria-label="Copy Name" title="Copy Name">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">CSS:</td>
+                      <td class="col-locator-cell"><span id="cssLocator"></span></td>
+                      <td class="col-match-count-cell"><span id="cssMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="cssBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyCssLocatorButton" aria-label="Copy CSS" title="Copy CSS">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">Relative:</td>
+                      <td class="col-locator-cell"><span id="relativeXPath"></span></td>
+                      <td class="col-match-count-cell"><span id="relativeMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="relativeBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyRelativeXPathButton" aria-label="Copy Relative XPath" title="Copy Relative XPath">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">Absolute:</td>
+                      <td class="col-locator-cell"><span id="absoluteXPath"></span></td>
+                      <td class="col-match-count-cell"><span id="absoluteMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="absoluteBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyAbsoluteXPathButton" aria-label="Copy Absolute XPath" title="Copy Absolute XPath">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">PlayWright:</td>
+                      <td class="col-locator-cell"><span id="playwrightLocator"></span></td>
+                      <td class="col-match-count-cell"><span id="playwrightMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="playwrightBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyPlaywrightLocatorButton" aria-label="Copy Playwright Locator" title="Copy Playwright Locator">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">JSPath:</td>
+                      <td class="col-locator-cell"><span id="jspathLocator"></span></td>
+                      <td class="col-match-count-cell"><span id="jspathMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="jspathBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyJspathLocatorButton" aria-label="Copy JSPath Locator" title="Copy JSPath Locator">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                    <tr>
+                      <td class="output-label col-label-cell">JQuery:</td>
+                      <td class="col-locator-cell"><span id="jqueryLocator"></span></td>
+                      <td class="col-match-count-cell"><span id="jqueryMatchCount"></span></td>
+                      <td class="col-badge-cell"><span id="jqueryBadge" class="locator-badge"></span></td>
+                      <td class="col-copy-button-cell"><button class="copy-button" id="copyJqueryLocatorButton" aria-label="Copy jQuery Locator" title="Copy jQuery Locator">
+                          <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      </button></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <!-- Intercepting Message -->
+                <div id="intercepting-msg" class="intercepting-msg" style="display:none;"></div>
+
+            </section>
+
+            <!-- Saved Locators Section -->
+            <section class="saved-xpaths-section card">
+                <div class="section-header">
+                    <h2 class="section-title">Saved Locators</h2>
+                    <input type="text" id="savedLocatorSearchInput" placeholder="Search saved locators..." class="form-control">
+                </div>
+                <div id="savedXPathsList" class="saved-xpaths-list">
+                    <p class="no-saved-xpaths">No saved locators yet.</p>
+                </div>
+            </section>
+
+        </main>
+
+        <div class="message-area" id="messageArea" style="min-height: 18px; padding: 2px 0; display: flex; align-items: center; justify-content: center; font-size: 12px;"></div>
+        
+        <footer class="footer">
+            <p class="copyright"> 2025 Locator X</p>
+        </footer>
+    </div>
+    <script src="sidepanel.js"></script>
+</body>
+</html>

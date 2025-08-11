@@ -1,0 +1,55 @@
+/* Content Script Highlight - Nested color system */
+.sh-highlight {
+    outline: 1.5px solid #007bff !important;
+    background-color: rgba(0, 123, 255, 0.08) !important;
+    transition: outline 0.2s, background-color 0.2s;
+    z-index: 2147483647 !important;
+    box-shadow: 0 0 6px rgba(0, 123, 255, 0.3);
+}
+
+/* Nested highlighting colors by depth */
+.sh-highlight-depth-0 {
+    outline: 2px solid #e74c3c !important;
+    background-color: rgba(231, 76, 60, 0.1) !important;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.4) !important;
+}
+
+.sh-highlight-depth-1 {
+    outline: 2px solid #f39c12 !important;
+    background-color: rgba(243, 156, 18, 0.1) !important;
+    box-shadow: 0 0 8px rgba(243, 156, 18, 0.4) !important;
+}
+
+.sh-highlight-depth-2 {
+    outline: 2px solid #2ecc71 !important;
+    background-color: rgba(46, 204, 113, 0.1) !important;
+    box-shadow: 0 0 8px rgba(46, 204, 113, 0.4) !important;
+}
+
+.sh-highlight-depth-3 {
+    outline: 2px solid #3498db !important;
+    background-color: rgba(52, 152, 219, 0.1) !important;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.4) !important;
+}
+
+.sh-highlight-depth-4 {
+    outline: 2px solid #9b59b6 !important;
+    background-color: rgba(155, 89, 182, 0.1) !important;
+    box-shadow: 0 0 8px rgba(155, 89, 182, 0.4) !important;
+}
+
+.sh-highlight-depth-5 {
+    outline: 2px solid #1abc9c !important;
+    background-color: rgba(26, 188, 156, 0.1) !important;
+    box-shadow: 0 0 8px rgba(26, 188, 156, 0.4) !important;
+}
+
+.sh-highlight-main {
+    outline: 1px solid #00e676 !important;
+    background: rgba(0, 230, 118, 0.06) !important;
+     /* background: #e7d0a4 !important; */
+}
+.sh-highlight-blocker {
+    outline: 1px solid #ff1744 !important;
+    background: rgba(255, 23, 68, 0.04) !important;
+}
