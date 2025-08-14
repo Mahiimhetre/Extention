@@ -1753,7 +1753,7 @@ body.dark-theme .tip-bad {
 .hierarchy-dropdown {
     position: absolute;
     right: 0;
-    /* width: 280px; */
+    width: 280px;
     z-index: 10000;
     border: 1px solid #dadce0;
     border-radius: 8px;

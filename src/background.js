@@ -44,12 +44,51 @@ if (chrome.sidePanel && chrome.sidePanel.onClosed) {
     chrome.sidePanel.onClosed.addListener((tabId) => {
         console.log(`BACKGROUND: Side panel for tab ${tabId} closed. Disabling capture mode.`);
         chrome.storage.local.set({ captureMode: false });
-        chrome.tabs.sendMessage(tabId, { action: 'toggleCaptureMode', enabled: false }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.warn(`BACKGROUND: Error sending message to content script of tab ${tabId} on panel close:`, chrome.runtime.lastError.message);
-            }
+        // Send message to all frames in all tabs to turn off capture mode
+        chrome.tabs.query({}, (tabs) => {
+            tabs.forEach(tab => {
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id, allFrames: true },
+                    func: () => {
+                        if (typeof window.captureMode !== 'undefined') window.captureMode = false;
+                        if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+                            chrome.runtime.sendMessage({ action: 'toggleCaptureMode', enabled: false });
+                        }
+                    }
+                });
+            });
         });
     });
 } else {
     console.warn('BACKGROUND: chrome.sidePanel.onClosed is not available in this Chrome version/environment. Consider updating Chrome or implementing a fallback.'); 
 }
+
+// Ensure capture mode is turned off when the extension is suspended/unloaded
+chrome.runtime.onSuspend.addListener(() => {
+    console.log('BACKGROUND: Extension is being suspended/unloaded. Disabling capture mode.');
+    chrome.storage.local.set({ captureMode: false });
+});
+
+// Fallback: Listen for side panel disconnect (panel closed) using long-lived port
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === 'sidepanel') {
+        port.onDisconnect.addListener(() => {
+            console.log('BACKGROUND: Side panel port disconnected. Disabling capture mode (fallback).');
+            chrome.storage.local.set({ captureMode: false });
+            // Send message to all frames in all tabs to turn off capture mode
+            chrome.tabs.query({}, (tabs) => {
+                tabs.forEach(tab => {
+                    chrome.scripting.executeScript({
+                        target: { tabId: tab.id, allFrames: true },
+                        func: () => {
+                            window.postMessage({ action: 'toggleCaptureMode', enabled: false }, '*');
+                            if (window.chrome && chrome.runtime && chrome.runtime.sendMessage) {
+                                chrome.runtime.sendMessage({ action: 'toggleCaptureMode', enabled: false });
+                            }
+                        }
+                    });
+                });
+            });
+        });
+    }
+});

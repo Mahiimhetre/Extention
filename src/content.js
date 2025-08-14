@@ -1,18 +1,37 @@
+// ===============================
+// LocatorX Content Script
+// ===============================
+// This script runs in the context of the web page and provides element locator generation,
+// highlighting, shadow DOM support, and communication with the extension's background/popup scripts.
+
 console.log('CONTENT: content.js is executing!');
 
-let captureMode = false;
-let lastHighlighted = null;
-let lastTooltip = null;
+// --- State Variables ---
+let captureMode = false; // Whether capture mode is active for element selection
+let lastHighlighted = null; // Last highlighted element reference
+let lastTooltip = null; // Last tooltip element reference
 
-// Shadow DOM support functions
+// ===============================
+// Shadow DOM Support Functions
+// ===============================
+
+/**
+ * Checks if the given element is inside a shadow DOM.
+ * @param {Element} element
+ * @returns {boolean}
+ */
 function isShadowElement(element) {
     return element.getRootNode().nodeType === Node.DOCUMENT_FRAGMENT_NODE;
 }
 
+/**
+ * Returns the shadow DOM depth of an element.
+ * @param {Element} element
+ * @returns {number}
+ */
 function getShadowDepth(element) {
     let depth = 0;
     let current = element;
-    
     while (current) {
         const root = current.getRootNode();
         if (root.nodeType === Node.DOCUMENT_FRAGMENT_NODE && root.host) {
@@ -22,10 +41,14 @@ function getShadowDepth(element) {
             break;
         }
     }
-    
     return depth;
 }
 
+/**
+ * Gets the shadow DOM mode ('open' or 'closed') for an element.
+ * @param {Element} element
+ * @returns {string|null}
+ */
 function getShadowMode(element) {
     const root = element.getRootNode();
     if (root.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -34,13 +57,22 @@ function getShadowMode(element) {
     return null;
 }
 
+/**
+ * Checks if an element is a shadow host.
+ * @param {Element} element
+ * @returns {boolean}
+ */
 function isShadowHost(element) {
     return !!element.shadowRoot;
 }
 
+/**
+ * Gets information about the shadow root of an element.
+ * @param {Element} element
+ * @returns {object|null}
+ */
 function getShadowRootInfo(element) {
     if (!isShadowHost(element)) return null;
-    
     const shadowRoot = element.shadowRoot;
     return {
         mode: shadowRoot ? shadowRoot.mode : 'closed',
@@ -49,10 +81,14 @@ function getShadowRootInfo(element) {
     };
 }
 
+/**
+ * Builds the shadow DOM path for an element.
+ * @param {Element} element
+ * @returns {Array}
+ */
 function getShadowPath(element) {
     const path = [];
     let current = element;
-    
     while (current) {
         const root = current.getRootNode();
         if (root.nodeType === Node.DOCUMENT_FRAGMENT_NODE && root.host) {
@@ -66,11 +102,18 @@ function getShadowPath(element) {
             break;
         }
     }
-    
     return path;
 }
 
-// Helper function to safely escape strings for XPath string literals
+// ===============================
+// Helper Functions
+// ===============================
+
+/**
+ * Escapes a string for use in an XPath string literal.
+ * @param {string} str
+ * @returns {string}
+ */
 function escapeXPathString(str) {
     if (str.includes("'") && str.includes('"')) {
         const parts = str.split("'").map(p => `'${p}'`);
@@ -82,11 +125,16 @@ function escapeXPathString(str) {
     }
 }
 
-// Function to inject highlight.css
+// ===============================
+// Highlight CSS Injection
+// ===============================
+
+/**
+ * Injects the highlight CSS into the page if not already present.
+ */
 function injectCss() {
     // Check if already injected
     if (document.querySelector('#locatorx-highlight-styles')) return;
-    
     const link = document.createElement('link');
     link.id = 'locatorx-highlight-styles';
     link.href = chrome.runtime.getURL('src/highlight.css');
@@ -98,11 +146,14 @@ function injectCss() {
 
 injectCss();
 
+/**
+ * Removes all highlight classes and tooltips from the document.
+ */
 function clearHighlights() {
     document.querySelectorAll('.sh-highlight').forEach(el => el.classList.remove('sh-highlight'));
     document.querySelectorAll('.sh-highlight-main').forEach(el => el.classList.remove('sh-highlight-main'));
     document.querySelectorAll('.sh-highlight-blocker').forEach(el => el.classList.remove('sh-highlight-blocker'));
-    // Clear nested highlight classes
+    // Remove all depth highlight classes
     for (let i = 0; i <= 5; i++) {
         document.querySelectorAll(`.sh-highlight-depth-${i}`).forEach(el => el.classList.remove(`sh-highlight-depth-${i}`));
     }
@@ -111,15 +162,20 @@ function clearHighlights() {
     lastTooltip = null;
 }
 
-// Apply nested highlighting based on DOM depth
+// ===============================
+// Highlighting Functions
+// ===============================
+
+/**
+ * Applies nested highlighting to a list of elements based on their DOM depth.
+ * @param {Element[]} elements
+ */
 function applyNestedHighlighting(elements) {
     if (elements.length === 0) return;
-    
     // Calculate nesting depth for each element
     const elementDepths = elements.map(el => {
         let depth = 0;
         let current = el.parentElement;
-        
         // Count how many of the matched elements are ancestors
         while (current) {
             if (elements.includes(current)) {
@@ -127,10 +183,8 @@ function applyNestedHighlighting(elements) {
             }
             current = current.parentElement;
         }
-        
         return { element: el, depth };
     });
-    
     // Apply color classes based on depth
     elementDepths.forEach(({ element, depth }, index) => {
         const colorDepth = Math.min(depth, 5); // Max 6 colors (0-5)
@@ -140,27 +194,36 @@ function applyNestedHighlighting(elements) {
     });
 }
 
+/**
+ * Scrolls the page to bring the element into view.
+ * @param {Element} el
+ */
 function scrollToElement(el) {
     if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
 
-// Shadow-aware CSS selector generation
+// ===============================
+// Locator Generation Functions
+// ===============================
+
+/**
+ * Generates a CSS selector for the given element, supporting shadow DOM.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateShadowCssSelector(element) {
     if (!element || element.nodeType !== 1) return '';
-    
     const shadowPath = getShadowPath(element);
     if (shadowPath.length > 0) {
         let selector = '';
-        
         // Build the shadow path
         for (let i = 0; i < shadowPath.length; i++) {
             const host = shadowPath[i].host;
             const hostSelector = host.id ? `#${CSS.escape(host.id)}` : host.tagName.toLowerCase();
             selector += hostSelector + '::shadow ';
         }
-        
         // Add the final element selector
         let elementSelector = element.tagName.toLowerCase();
         if (element.id) {
@@ -171,27 +234,27 @@ function generateShadowCssSelector(element) {
                 elementSelector += `.${CSS.escape(classList[0])}`;
             }
         }
-        
         return selector + elementSelector;
     }
-    
     if (element.id) {
         return `#${CSS.escape(element.id)}`;
     }
     return element.tagName.toLowerCase();
 }
 
-// CSS selector generation
+/**
+ * Generates a unique CSS selector for the given element.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateCssSelector(element) {
     if (!element || element.nodeType !== 1) return '';
-
     if (element.id && /^[a-zA-Z][\w-]*$/.test(element.id)) {
         const idSelector = `#${CSS.escape(element.id)}`;
         if (document.querySelectorAll(idSelector).length === 1) {
             return idSelector;
         }
     }
-
     const classList = Array.from(element.classList).filter(cls => !cls.startsWith('sh-highlight'));
     if (classList.length > 0) {
         for (const cls of classList.slice(0, 3)) {
@@ -201,23 +264,30 @@ function generateCssSelector(element) {
             }
         }
     }
-
     return getShortestCssPath(element);
 }
 
+/**
+ * Builds the shortest unique CSS path for an element.
+ * This function walks up the DOM tree from the given element, constructing a selector for each ancestor.
+ * It tries to use IDs when available (and valid), otherwise uses tag names and :nth-child for uniqueness.
+ * The function stops early if a unique selector is found at any point.
+ * @param {Element} element - The DOM element to generate a unique CSS path for.
+ * @returns {string} - The shortest unique CSS selector path for the element.
+ */
 function getShortestCssPath(element) {
     const path = [];
     let current = element;
-    
+    // Traverse up the DOM tree until reaching the root <html> element
     while (current && current !== document.documentElement) {
         let selector = current.tagName.toLowerCase();
-        
+        // Prefer using ID if available and valid, as it's unique in the document
         if (current.id && /^[a-zA-Z][\w-]*$/.test(current.id)) {
             selector = `#${CSS.escape(current.id)}`;
             path.unshift(selector);
-            break;
+            break; // ID is unique, so we can stop here
         }
-        
+        // If no ID, use :nth-child if there are siblings with the same tag name
         if (current.parentNode) {
             const siblings = Array.from(current.parentNode.children)
                 .filter(sib => sib.tagName === current.tagName);
@@ -226,50 +296,57 @@ function getShortestCssPath(element) {
                 selector += `:nth-child(${index})`;
             }
         }
-        
         path.unshift(selector);
-        
+        // Test if the current path is unique in the document
         const testPath = path.join(' > ');
         if (document.querySelectorAll(testPath).length === 1) {
             return testPath;
         }
-        
         current = current.parentNode;
     }
-    
+    // If no unique selector was found, return the full path
     return path.join(' > ');
 }
 
-// ID locator generation
+// --- ID locator generation ---
+// Attempts to generate a locator using the element's ID attribute, if it is unique and valid.
+/**
+ * Generates a locator using the element's ID attribute if it is unique and valid.
+ * Returns the ID string if it is unique in the DOM, otherwise returns an empty string.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateIdLocator(element) {
     if (!element.id) return '';
-    
+    // Only allow valid IDs (must start with a letter)
     if (!/^[a-zA-Z][\w-]*$/.test(element.id)) return '';
-    
     const root = element.getRootNode();
     const context = root.nodeType === Node.DOCUMENT_FRAGMENT_NODE ? root : document;
-    
     try {
+        // Ensure the ID is unique within the context
         if (context.querySelectorAll(`#${CSS.escape(element.id)}`).length === 1) {
             return element.id;
         }
     } catch (e) {
         return '';
     }
-    
     return '';
 }
 
-// Name locator generation
+// --- Name locator generation ---
+// Generates a locator using the element's name attribute, if it is unique among form elements.
+/**
+ * Generates a locator using the element's name attribute if it is unique among form elements.
+ * Returns the name string if it is unique, otherwise returns an empty string.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateNameLocator(element) {
     if (!element.name || !element.name.trim()) return '';
-    
     const formElements = ['input', 'select', 'textarea', 'button'];
     if (!formElements.includes(element.tagName.toLowerCase())) return '';
-    
     const root = element.getRootNode();
     const context = root.nodeType === Node.DOCUMENT_FRAGMENT_NODE ? root : document;
-    
     try {
         const nameSelector = `[name="${CSS.escape(element.name)}"]`;
         if (context.querySelectorAll(nameSelector).length === 1) {
@@ -278,11 +355,18 @@ function generateNameLocator(element) {
     } catch (e) {
         return '';
     }
-    
     return '';
 }
 
-// Playwright locator generation
+// --- Playwright locator generation ---
+// Attempts to generate a Playwright locator using test attributes, roles, or text content.
+/**
+ * Generates a Playwright locator string for the element.
+ * Tries to use test attributes, ARIA roles, or text content for better stability.
+ * Falls back to CSS selector if no better option is found.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generatePlaywrightLocator(element) {
     const testAttrs = ['data-testid', 'data-test', 'data-cy'];
     for (const attr of testAttrs) {
@@ -291,7 +375,6 @@ function generatePlaywrightLocator(element) {
             return `[${attr}="${val}"]`;
         }
     }
-    
     const role = element.getAttribute('role') || element.tagName.toLowerCase();
     const roleMap = {
         'button': 'button',
@@ -300,7 +383,6 @@ function generatePlaywrightLocator(element) {
         'select': 'combobox',
         'textarea': 'textbox'
     };
-    
     if (roleMap[role] || element.getAttribute('role')) {
         const actualRole = element.getAttribute('role') || roleMap[role];
         const name = element.getAttribute('aria-label') || element.textContent?.trim();
@@ -309,7 +391,6 @@ function generatePlaywrightLocator(element) {
         }
         return `role=${actualRole}`;
     }
-    
     const interactiveElements = ['button', 'a', 'label'];
     if (interactiveElements.includes(element.tagName.toLowerCase())) {
         const text = element.textContent?.trim();
@@ -317,31 +398,33 @@ function generatePlaywrightLocator(element) {
             return `text="${text}"`;
         }
     }
-    
     if (element.tagName.toLowerCase() === 'input' && element.placeholder) {
         return `placeholder="${element.placeholder}"`;
     }
-    
     const css = isShadowElement(element) ? generateShadowCssSelector(element) : generateCssSelector(element);
     return css || element.tagName.toLowerCase();
 }
 
-// Shadow-aware Playwright locator
+// --- Shadow-aware Playwright locator ---
+// Generates a Playwright locator that works with shadow DOM elements by chaining .shadow() and .locator().
+/**
+ * Generates a Playwright locator string that supports shadow DOM traversal.
+ * Chains .shadow() and .locator() for each shadow host in the path.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateShadowPlaywrightLocator(element) {
     if (!isShadowElement(element)) {
         return generatePlaywrightLocator(element);
     }
-    
     const shadowPath = getShadowPath(element);
     if (shadowPath.length === 0) {
         return generatePlaywrightLocator(element);
     }
-    
     // Start with the outermost host
     const firstHost = shadowPath[0].host;
     const hostSelector = firstHost.id ? `#${firstHost.id}` : firstHost.tagName.toLowerCase();
     let locatorChain = `page.locator('${hostSelector}')`;
-    
     // Add shadow() for each level
     for (let i = 0; i < shadowPath.length; i++) {
         locatorChain += '.shadow()';
@@ -351,7 +434,6 @@ function generateShadowPlaywrightLocator(element) {
             locatorChain += `.locator('${nextSelector}')`;
         }
     }
-    
     // Add final element selector
     let elementSelector = '';
     if (element.id) {
@@ -361,24 +443,35 @@ function generateShadowPlaywrightLocator(element) {
     } else {
         elementSelector = element.tagName.toLowerCase();
     }
-    
     return locatorChain + `.locator('${elementSelector}')`;
 }
 
-// JSPath locator generation
+// --- JSPath locator generation ---
+// Generates a JSPath locator using document.querySelector for the element.
+/**
+ * Generates a JSPath locator using document.querySelector for the element.
+ * Returns a string that can be evaluated in the browser console.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateJSPathLocator(element) {
     const cssSelector = isShadowElement(element) ? generateShadowCssSelector(element) : generateCssSelector(element);
     if (!cssSelector) return '';
-    
     const escapedSelector = cssSelector.replace(/"/g, '\\"');
     return `document.querySelector("${escapedSelector}")`;
 }
 
-// jQuery locator generation
+// --- jQuery locator generation ---
+// Generates a jQuery-style locator for the element, using CSS selectors or :contains for text.
+/**
+ * Generates a jQuery-style locator for the element.
+ * Uses CSS selectors or :contains for text content if appropriate.
+ * @param {Element} element
+ * @returns {string}
+ */
 function generateJQueryLocator(element) {
     const css = isShadowElement(element) ? generateShadowCssSelector(element) : generateCssSelector(element);
     if (css) return css;
-    
     const interactiveElements = ['button', 'a', 'span', 'div'];
     if (interactiveElements.includes(element.tagName.toLowerCase())) {
         const text = element.textContent?.trim();
@@ -386,14 +479,23 @@ function generateJQueryLocator(element) {
             return `${element.tagName.toLowerCase()}:contains("${text}")`;
         }
     }
-    
     return element.tagName.toLowerCase();
 }
 
-// XPath generation
+// --- XPath generation ---
+// Attempts to generate both relative and absolute XPath locators for the element.
+// Uses ID, stable attributes, or text content for a shorter XPath.
+/**
+ * Generates both relative and absolute XPath locators for the element.
+ * Tries to use ID, stable attributes, or text content for a shorter XPath if possible.
+ * Returns an object with relative and absolute XPath strings.
+ * @param {Element} element
+ * @returns {{relative: string, absolute: string, shadowAware?: boolean}}
+ */
 function generateXPath(element) {
     if (!element || element.nodeType !== 1) return { relative: '', absolute: '', shadowAware: false };
 
+    // Try using ID if unique and valid
     if (element.id && /^[a-zA-Z][\w-]*$/.test(element.id)) {
         const idXpath = `//*[@id=${escapeXPathString(element.id)}]`;
         try {
@@ -406,6 +508,7 @@ function generateXPath(element) {
         }
     }
 
+    // Try stable attributes
     const stableAttrs = ['data-testid', 'data-test', 'data-cy', 'name'];
     for (const attr of stableAttrs) {
         const val = element.getAttribute(attr);
@@ -422,6 +525,7 @@ function generateXPath(element) {
         }
     }
 
+    // Try text content for common interactive elements
     const interactiveElements = ['button', 'a', 'span', 'label'];
     if (interactiveElements.includes(element.tagName.toLowerCase())) {
         const text = element.textContent?.trim();
@@ -438,19 +542,21 @@ function generateXPath(element) {
         }
     }
 
+    // Try to build the shortest unique path
     const shortest = getShortestUniquePath(element);
     if (shortest) return { relative: shortest, absolute: getAbsoluteXPath(element) };
 
+    // Fallback to absolute XPath
     return { relative: getAbsoluteXPath(element), absolute: getAbsoluteXPath(element) };
 
+    // --- Helper for shortest unique XPath ---
     function getShortestUniquePath(el) {
         const segments = [];
         while (el && el.nodeType === 1 && el !== document.body) {
             let tag = el.tagName.toLowerCase();
-            let siblings = Array.from(el.parentNode.children).filter(sib => sib.tagName === el.tagName);
+            let siblings = Array.from(el.parentNode ? el.parentNode.children : []).filter(sib => sib.tagName === el.tagName);
             let idx = siblings.length > 1 ? `[${1 + siblings.indexOf(el)}]` : '';
             segments.unshift(`${tag}${idx}`);
-            
             const partialXpath = '//' + segments.join('/');
             const result = document.evaluate(partialXpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
             if (result.snapshotLength === 1 && result.snapshotItem(0) === element) {
@@ -461,6 +567,7 @@ function generateXPath(element) {
         return null;
     }
 
+    // --- Helper for absolute XPath ---
     function getAbsoluteXPath(el) {
         if (!el || el.nodeType !== 1) return '';
         let path = '';
@@ -476,6 +583,12 @@ function generateXPath(element) {
 }
 
 // Shadow-aware XPath generation
+/**
+ * Generates shadow-aware XPath locators for elements inside shadow DOM.
+ * Returns an object with shadow-aware flags and shadow info if applicable.
+ * @param {Element} element
+ * @returns {{relative: string, absolute: string, shadowAware: boolean, shadowMode?: string, shadowDepth?: number}}
+ */
 function generateShadowXPath(element) {
     if (!element || element.nodeType !== 1) return { relative: '', absolute: '', shadowAware: false };
     
@@ -495,7 +608,14 @@ function generateShadowXPath(element) {
     return generateXPath(element);
 }
 
-// Match count evaluation
+// --- Match count evaluation ---
+/**
+ * Returns the number of elements matched by a locator of a given type.
+ * Supports CSS, XPath, id, name, JSPath, and Playwright locators.
+ * @param {string} locator
+ * @param {string} type
+ * @returns {number}
+ */
 function getMatchCount(locator, type) {
     try {
         if (!locator) return 0;
@@ -540,7 +660,14 @@ function getMatchCount(locator, type) {
     return 0;
 }
 
-// Shadow-aware match count
+// --- Shadow-aware match count ---
+/**
+ * Returns the number of elements matched by a locator inside shadow DOM.
+ * Handles shadow-aware selectors and Playwright shadow locators.
+ * @param {string} locator
+ * @param {string} type
+ * @returns {number}
+ */
 function getShadowMatchCount(locator, type) {
     try {
         if (!locator) return 0;
@@ -588,7 +715,12 @@ function getShadowMatchCount(locator, type) {
     }
 }
 
-// Shadow selector evaluation
+// --- Shadow selector evaluation ---
+/**
+ * Evaluates a shadow DOM selector (with ::shadow) and returns matching elements.
+ * @param {string} selector
+ * @returns {Element[]}
+ */
 function evaluateShadowSelector(selector) {
     const matches = [];
     
@@ -630,7 +762,13 @@ function evaluateShadowSelector(selector) {
     return matches;
 }
 
-// Generate all locators
+// --- Generate all locators for an element ---
+/**
+ * Generates all supported locator types for a given element.
+ * Returns an object with locator values, match counts, and uniqueness flags.
+ * @param {Element} element
+ * @returns {object}
+ */
 function generateAllLocators(element) {
     if (!element || element.nodeType !== 1) {
         return {};
@@ -788,24 +926,28 @@ function evaluateLocator(locator) {
 }
 
 // Event handlers
-function handleHover(e) {
-    if (!captureMode || elementCaptured) return;
-    
-    let el = e.target;
-    
-    // Use composedPath for shadow DOM elements
-    if (e.composedPath && e.composedPath().length > 0) {
-        el = e.composedPath()[0];
-        
-        if (el.nodeType === Node.TEXT_NODE) {
-            el = el.parentElement;
-        }
-    }
-    
-    if (!(el instanceof HTMLElement)) return;
-
+function processElementForLocators(el, opts = {}) {
     const locators = generateAllLocators(el);
     const blockerInfo = isBlocked(el);
+    const isShadow = isShadowElement(el);
+    let hierarchyData = undefined;
+    let shadowInfo = undefined;
+    let permanent = opts.permanent || false;
+    let temporary = opts.temporary || false;
+
+    if (isShadow) {
+        hierarchyData = buildElementHierarchy(el);
+        shadowInfo = {
+            isInShadow: true,
+            shadowDepth: getShadowDepth(el),
+            shadowMode: getShadowMode(el),
+            shadowPath: getShadowPath(el),
+            isShadowHost: isShadowHost(el),
+            shadowRootInfo: getShadowRootInfo(el)
+        };
+        permanent = true;
+        temporary = false;
+    }
 
     clearHighlights();
     el.classList.add('sh-highlight-main');
@@ -843,16 +985,102 @@ function handleHover(e) {
                 playwrightUnique: locators.playwright?.isUnique || false,
                 jspathUnique: locators.jspath?.isUnique || false,
                 jqueryUnique: locators.jquery?.isUnique || false,
-                temporary: true
+                temporary,
+                permanent,
+                hierarchyData,
+                shadowInfo
             });
 
-            chrome.runtime.sendMessage({
-                action: 'statusBar',
-                text: `Hovering: ${el.tagName.toLowerCase()}${el.id ? ' #' + el.id : ''}${el.className && !el.className.includes('sh-highlight') ? ' .' + el.className.split(' ')[0] : ''}`
-            });
+            if (opts.statusBarText) {
+                chrome.runtime.sendMessage({
+                    action: 'statusBar',
+                    text: opts.statusBarText
+                });
+            }
         }
     } catch (e) {
-        console.log("CONTENT: Could not send hover message - " + e.message);
+        console.log("CONTENT: Could not send locator message - " + e.message);
+    }
+}
+
+function handleHover(e) {
+    if (!captureMode || elementCaptured) return;
+    
+    let el = e.target;
+    // Use composedPath for shadow DOM elements, match click logic (original revert)
+    if (e.composedPath && e.composedPath().length > 0) {
+        el = e.composedPath()[0];
+        if (el && el.nodeType === Node.TEXT_NODE) {
+            el = el.parentElement;
+        }
+    }
+    if (!(el instanceof HTMLElement)) return;
+
+    if (isShadowElement(el)) {
+        // Use capture strategy for shadow DOM elements
+        const locators = generateAllLocators(el);
+        const hierarchyData = buildElementHierarchy(el);
+        const blockerInfo = isBlocked(el);
+        const shadowInfo = {
+            isInShadow: true,
+            shadowDepth: getShadowDepth(el),
+            shadowMode: getShadowMode(el),
+            shadowPath: getShadowPath(el),
+            isShadowHost: isShadowHost(el),
+            shadowRootInfo: getShadowRootInfo(el)
+        };
+        clearHighlights();
+        el.classList.add('sh-highlight-main');
+        lastHighlighted = el;
+        if (blockerInfo && blockerInfo.blocker) {
+            blockerInfo.blocker.classList.add('sh-highlight-blocker');
+        }
+        try {
+            if (chrome.runtime && chrome.runtime.id) {
+                const messageData = {
+                    action: 'showXPathInfo',
+                    id: locators.id?.value || '',
+                    name: locators.name?.value || '',
+                    cssSelector: locators.css?.value || '',
+                    relativeXPath: locators.relativeXPath?.value || '',
+                    absoluteXPath: locators.absoluteXPath?.value || '',
+                    playwrightLocator: locators.playwright?.value || '',
+                    jspathLocator: locators.jspath?.value || '',
+                    jqueryLocator: locators.jquery?.value || '',
+                    idMatchCount: locators.id?.matchCount || 0,
+                    nameMatchCount: locators.name?.matchCount || 0,
+                    cssMatchCount: locators.css?.matchCount || 0,
+                    relativeXPathMatchCount: locators.relativeXPath?.matchCount || 0,
+                    absoluteXPathMatchCount: locators.absoluteXPath?.matchCount || 0,
+                    playwrightMatchCount: locators.playwright?.matchCount || 0,
+                    jspathMatchCount: locators.jspath?.matchCount || 0,
+                    jqueryMatchCount: locators.jquery?.matchCount || 0,
+                    idUnique: locators.id?.isUnique || false,
+                    nameUnique: locators.name?.isUnique || false,
+                    cssUnique: locators.css?.isUnique || false,
+                    relativeXPathUnique: locators.relativeXPath?.isUnique || false,
+                    absoluteXPathUnique: locators.absoluteXPath?.isUnique || false,
+                    playwrightUnique: locators.playwright?.isUnique || false,
+                    jspathUnique: locators.jspath?.isUnique || false,
+                    jqueryUnique: locators.jquery?.isUnique || false,
+                    permanent: true,
+                    hierarchyData,
+                    shadowInfo
+                };
+                chrome.runtime.sendMessage(messageData);
+                chrome.runtime.sendMessage({
+                    action: 'statusBar',
+                    text: `Hovering: ${el.tagName.toLowerCase()}${el.id ? ' #' + el.id : ''}${el.className && !el.className.includes('sh-highlight') ? ' .' + el.className.split(' ')[0] : ''}`
+                });
+            }
+        } catch (e) {
+            console.log("CONTENT: Could not send hover/capture shadow message - " + e.message);
+        }
+    } else {
+        processElementForLocators(el, {
+            temporary: true,
+            statusBarText: `Hovering: ${el.tagName.toLowerCase()}${el.id ? ' #' + el.id : ''}${el.className && !el.className.includes('sh-highlight') ? ' .' + el.className.split(' ')[0] : ''}`
+        });
     }
 }
 
@@ -1052,6 +1280,8 @@ function handleClick(e) {
             elementCaptured = true;
             captureMode = false;
             chrome.runtime.sendMessage({ action: 'captureModeChanged', enabled: false });
+            // Broadcast capture mode off to all frames
+            chrome.runtime.sendMessage({ action: 'broadcastCaptureModeOff' });
         }
     } catch (e) {
         console.log("CONTENT: Could not send click message - " + e.message);

@@ -8,8 +8,23 @@ function checkPageSupport() {
             showNotSupportedBanner();
             return;
         }
+        const url = tabs[0].url || '';
+        const unsupported = [
+            /^chrome:\/\//,
+            /^chrome-extension:\/\//,
+            /^chrome-devtools:/,
+            /^https:\/\/chrome\.google\.com\/webstore/,
+            /\.pdf($|\?)/
+        ];
+        const isSupported = !unsupported.some(re => re.test(url));
+        if (!isSupported) {
+            showNotSupportedBanner();
+            return;
+        }
+        // Only ping if the page is supported
         chrome.tabs.sendMessage(tabs[0].id, {action: "ping"}, function(response) {
             if (chrome.runtime.lastError || !response || response.status !== "ok") {
+                // Supported page, but content script missing
                 showNotSupportedBanner();
             } else {
                 hideNotSupportedBanner();
@@ -17,25 +32,6 @@ function checkPageSupport() {
         });
     });
 }
-
-// Initial setup
-document.querySelector('.container').style.display = '';
-initPanel();
-checkPageSupport();
-
-// Check page support every 200ms for faster response
-setInterval(checkPageSupport, 200);
-
-// Force check when sidepanel becomes visible
-let lastActiveTabId = null;
-setInterval(() => {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (tabs.length > 0 && tabs[0].id !== lastActiveTabId) {
-            lastActiveTabId = tabs[0].id;
-            checkPageSupport();
-        }
-    });
-}, 100);
 
 function showNotSupportedBanner() {
     const banner = document.getElementById('not-supported-banner');
@@ -58,6 +54,29 @@ function hideNotSupportedBanner() {
     const banner = document.getElementById('not-supported-banner');
     if (banner) banner.style.display = 'none';
 }
+
+
+// Initial setup
+// Open a long-lived connection to the background for panel close detection
+const panelPort = chrome.runtime.connect({ name: 'sidepanel' });
+document.querySelector('.container').style.display = '';
+initPanel();
+checkPageSupport();
+
+// Check page support every 200ms for faster response
+setInterval(checkPageSupport, 200);
+
+// Force check when sidepanel becomes visible
+let lastActiveTabId = null;
+setInterval(() => {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs.length > 0 && tabs[0].id !== lastActiveTabId) {
+            lastActiveTabId = tabs[0].id;
+            checkPageSupport();
+        }
+    });
+}, 100);
+
 
 // Function to toggle capture mode hover status
 function toggleCaptureMode(isOn) {
@@ -1728,3 +1747,52 @@ function initPanel() {
 
 addGeneratedLocatorClickListeners();
 } // End of initPanel function
+
+// Toggle capture mode in all frames (main frame + iframes)
+function toggleCaptureModeInAllFrames(enabled) {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs.length) return;
+        const tabId = tabs[0].id;
+        chrome.webNavigation.getAllFrames({tabId}, function(frames) {
+            frames.forEach(frame => {
+                chrome.tabs.sendMessage(
+                    tabId,
+                    {action: 'toggleCaptureMode', enabled: enabled},
+                    {frameId: frame.frameId}
+                );
+            });
+        });
+    });
+}
+
+// Evaluate a locator in all frames (main frame + iframes) and update the UI with the total match count
+function evaluateLocatorInAllFrames(locator) {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (!tabs.length) return;
+        const tabId = tabs[0].id;
+        chrome.webNavigation.getAllFrames({tabId}, function(frames) {
+            let totalMatches = 0;
+            let responses = 0;
+            frames.forEach(frame => {
+                chrome.tabs.sendMessage(
+                    tabId,
+                    {action: 'evaluateLocator', locator: locator},
+                    {frameId: frame.frameId},
+                    function(response) {
+                        responses++;
+                        if (response && typeof response.count === 'number') {
+                            totalMatches += response.count;
+                        }
+                        // When all frames have responded, update the UI
+                        if (responses === frames.length) {
+                            const matchCountElem = document.getElementById('matchCount');
+                            if (matchCountElem) {
+                                matchCountElem.textContent = totalMatches + ' matches';
+                            }
+                        }
+                    }
+                );
+            });
+        });
+    });
+}

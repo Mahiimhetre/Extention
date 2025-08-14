@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Locator Generator",
+  "name": "Extention",
   "short_name": "Locator-X",
   "author": "Mr.Mahesh",
-  "version": "2.0",
+  "version": "1",
   "description": "Advanced XPath and CSS selector generator with interception detection.",
   "permissions": [
     "activeTab",
