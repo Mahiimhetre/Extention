@@ -75,7 +75,7 @@ function injectIframeScript(iframe) {
         link.rel = 'stylesheet';
         iframeDoc.head.appendChild(link);
     } catch (e) {
-        console.log('Cannot inject into iframe:', e.message);
+        // Cannot inject into iframe - likely cross-origin
     }
 }
 
@@ -191,8 +191,11 @@ initializeIframeSupport();
 // Listen for iframe events
 window.addEventListener('message', (event) => {
     if (event.data.type === 'iframe-event') {
-        console.log('Received iframe event:', event.data);
+        // Handle iframe events
+        if (window.handleIframeEvent) {
+            window.handleIframeEvent(event.data);
+        }
     }
 });
 
-console.log('LocatorX iframe support initialized');
+// LocatorX iframe support initialized

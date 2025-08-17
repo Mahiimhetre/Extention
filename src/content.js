@@ -4,7 +4,7 @@
 // This script runs in the context of the web page and provides element locator generation,
 // highlighting, shadow DOM support, and communication with the extension's background/popup scripts.
 
-console.log('CONTENT: content.js is executing!');
+// Content script initialized
 
 // --- State Variables ---
 let captureMode = false; // Whether capture mode is active for element selection
@@ -141,7 +141,6 @@ function injectCss() {
     link.type = 'text/css';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
-    console.log('CONTENT: Highlight CSS injected');
 }
 
 injectCss();
@@ -189,7 +188,6 @@ function applyNestedHighlighting(elements) {
     elementDepths.forEach(({ element, depth }, index) => {
         const colorDepth = Math.min(depth, 5); // Max 6 colors (0-5)
         element.classList.add(`sh-highlight-depth-${colorDepth}`);
-        console.log(`CONTENT: Element ${index + 1} highlighted with depth-${colorDepth}:`, element);
         lastHighlighted = element;
     });
 }
@@ -999,13 +997,21 @@ function processElementForLocators(el, opts = {}) {
             }
         }
     } catch (e) {
-        console.log("CONTENT: Could not send locator message - " + e.message);
+        // Could not send locator message
     }
 }
 
 function handleHover(e) {
     if (!captureMode || elementCaptured) return;
     
+    // Debounce hover events to improve performance
+    clearTimeout(hoverTimeout);
+    hoverTimeout = setTimeout(() => {
+        processHoverEvent(e);
+    }, 50); // 50ms debounce
+}
+
+function processHoverEvent(e) {
     let el = e.target;
     // Use composedPath for shadow DOM elements, match click logic (original revert)
     if (e.composedPath && e.composedPath().length > 0) {
@@ -1074,7 +1080,7 @@ function handleHover(e) {
                 });
             }
         } catch (e) {
-            console.log("CONTENT: Could not send hover/capture shadow message - " + e.message);
+            // Could not send hover/capture shadow message
         }
     } else {
         processElementForLocators(el, {
@@ -1093,7 +1099,7 @@ function handleMouseOut(e) {
             chrome.runtime.sendMessage({ action: 'clearTemporaryLocators' });
         }
     } catch (e) {
-        console.log("CONTENT: Could not send clear message - " + e.message);
+        // Could not send clear message
     }
 }
 
@@ -1159,6 +1165,7 @@ function buildElementHierarchy(targetElement) {
 }
 
 let elementCaptured = false;
+let hoverTimeout = null; // Debounce timeout for hover events
 
 function handleClick(e) {
     if (!captureMode) return;
@@ -1196,7 +1203,7 @@ function handleClick(e) {
                 });
             }
         } catch (e) {
-            console.log('CONTENT: Could not send closed shadow DOM message');
+            // Could not send closed shadow DOM message
         }
     }
     
@@ -1284,14 +1291,13 @@ function handleClick(e) {
             chrome.runtime.sendMessage({ action: 'broadcastCaptureModeOff' });
         }
     } catch (e) {
-        console.log("CONTENT: Could not send click message - " + e.message);
+        // Could not send click message
         captureMode = false;
     }
 }
 
 // Message listener
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    console.log('CONTENT: received message:', msg.action);
     
     if (msg.action === 'ping') {
         sendResponse({status: "ok"});
@@ -1319,7 +1325,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === 'evaluateLocator') {
         clearHighlights();
         const matches = evaluateLocator(msg.locator);
-        console.log('CONTENT: Found', matches.length, 'matches for locator:', msg.locator);
         
         // Apply nested highlighting based on DOM depth
         applyNestedHighlighting(matches);
@@ -1594,7 +1599,15 @@ document.addEventListener('mouseup', (e) => {
 // Initialize capture mode from storage
 chrome.storage.local.get(['captureMode'], (result) => {
     captureMode = result.captureMode || false;
-    console.log('CONTENT: Initial capture mode loaded:', captureMode);
+});
+
+// Cleanup event listeners on page unload
+window.addEventListener('beforeunload', () => {
+    clearTimeout(hoverTimeout);
+    clearHighlights();
+    document.removeEventListener('mouseover', handleHover, true);
+    document.removeEventListener('mouseout', handleMouseOut, true);
+    document.removeEventListener('click', handleClick, true);
 });
 
 // Load iframe support

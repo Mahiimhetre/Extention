@@ -1,6 +1,34 @@
 // background.js
 
+// Create context menu on installation
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: "toggle-capture-mode",
+        title: "Toggle Locator Capture Mode",
+        contexts: ["page", "selection", "link", "image"]
+    });
+    
+    chrome.contextMenus.create({
+        id: "open-sidepanel",
+        title: "Open Locator-X Panel",
+        contexts: ["page"]
+    });
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "toggle-capture-mode") {
+        chrome.tabs.sendMessage(tab.id, { action: 'keyboardToggle' });
+    } else if (info.menuItemId === "open-sidepanel") {
+        if (chrome.sidePanel && chrome.sidePanel.open) {
+            chrome.sidePanel.open({ tabId: tab.id });
+        }
+    }
+});
+
+//to get keyboard Action(pressing keys)
 chrome.commands.onCommand.addListener((command) => {
+    //command for capture mode turn on/off via keyboard
     if (command === "toggle-capture-mode") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0]) {
@@ -12,11 +40,8 @@ chrome.commands.onCommand.addListener((command) => {
 
 // Open side panel when extension icon is clicked
 chrome.action.onClicked.addListener((tab) => {
-    console.log("BACKGROUND: Opening side panel."); 
     if (chrome.sidePanel && chrome.sidePanel.open) {
         chrome.sidePanel.open({ tabId: tab.id });
-    } else {
-        console.warn("BACKGROUND: chrome.sidePanel API not available for opening."); 
     }
 });
 
@@ -42,7 +67,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Listen for when the side panel is closed
 if (chrome.sidePanel && chrome.sidePanel.onClosed) {
     chrome.sidePanel.onClosed.addListener((tabId) => {
-        console.log(`BACKGROUND: Side panel for tab ${tabId} closed. Disabling capture mode.`);
         chrome.storage.local.set({ captureMode: false });
         // Send message to all frames in all tabs to turn off capture mode
         chrome.tabs.query({}, (tabs) => {
@@ -55,17 +79,14 @@ if (chrome.sidePanel && chrome.sidePanel.onClosed) {
                             chrome.runtime.sendMessage({ action: 'toggleCaptureMode', enabled: false });
                         }
                     }
-                });
+                }).catch(() => {}); // Ignore errors for closed tabs
             });
         });
     });
-} else {
-    console.warn('BACKGROUND: chrome.sidePanel.onClosed is not available in this Chrome version/environment. Consider updating Chrome or implementing a fallback.'); 
 }
 
 // Ensure capture mode is turned off when the extension is suspended/unloaded
 chrome.runtime.onSuspend.addListener(() => {
-    console.log('BACKGROUND: Extension is being suspended/unloaded. Disabling capture mode.');
     chrome.storage.local.set({ captureMode: false });
 });
 
@@ -73,7 +94,6 @@ chrome.runtime.onSuspend.addListener(() => {
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name === 'sidepanel') {
         port.onDisconnect.addListener(() => {
-            console.log('BACKGROUND: Side panel port disconnected. Disabling capture mode (fallback).');
             chrome.storage.local.set({ captureMode: false });
             // Send message to all frames in all tabs to turn off capture mode
             chrome.tabs.query({}, (tabs) => {
@@ -86,7 +106,7 @@ chrome.runtime.onConnect.addListener((port) => {
                                 chrome.runtime.sendMessage({ action: 'toggleCaptureMode', enabled: false });
                             }
                         }
-                    });
+                    }).catch(() => {}); // Ignore errors for closed tabs
                 });
             });
         });

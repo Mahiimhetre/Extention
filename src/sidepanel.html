@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Locator X</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="compact.css">
 </head>
 <body>
     <div id="not-supported-banner" style="display:none;"></div>
@@ -14,14 +14,106 @@
     <div class="container" style="display:none;">
         <header class="header">
             <h1 class="title">Locator X</h1>
-            <p class="subtitle">Locator Generator & Manager</p>
+            <p class="subtitle">Locator Generator &amp; Manager</p>
+            <div class="about-wrapper">
+                <i class="bi bi-info-circle about-button" id="aboutBtn"></i>
+                <div id="aboutDropdown" class="about-dropdown" style="display:none;">
+                    <div class="about-content">
+                        <div class="about-header">
+                            <h3>🎯 LocatorX Extension</h3>
+                            <span class="version-badge">v1.0.0</span>
+                        </div>
+                        
+                        <div class="about-section">
+                            <h4>📋 About</h4>
+                            <p>LocatorX is a powerful browser extension that helps developers and testers generate, evaluate, and manage web element locators efficiently. It supports XPath, CSS selectors, and various automation framework formats.</p>
+                        </div>
+                        
+                        <div class="about-section">
+                            <h4>🚀 Key Features</h4>
+                            <ul>
+                                <li><strong>Smart Locator Generation:</strong> Auto-generates XPath, CSS, Playwright, JSPath, and jQuery locators</li>
+                                <li><strong>Real-time Evaluation:</strong> Test locators instantly with match count and highlighting</li>
+                                <li><strong>Capture Mode:</strong> Click elements to generate locators automatically (Ctrl+Shift+X)</li>
+                                <li><strong>Save & Organize:</strong> Save frequently used locators with custom names</li>
+                                <li><strong>Import/Export:</strong> Share locator collections with your team</li>
+                                <li><strong>Theme Support:</strong> Light and dark theme options</li>
+                                <li><strong>Element Hierarchy:</strong> View DOM structure and element relationships</li>
+                                <li><strong>Shadow DOM & iFrame Support:</strong> Works with complex web applications</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="about-section">
+                            <h4>📖 Quick User Manual</h4>
+                            <div class="manual-steps">
+                                <div class="manual-step">
+                                    <strong>1. Enable Capture Mode:</strong>
+                                    <p>Toggle "Capture Mode" or press <kbd>Ctrl+Shift+X</kbd> to start clicking elements on the page to generate locators automatically.</p>
+                                </div>
+                                <div class="manual-step">
+                                    <strong>2. Manual Locator Testing:</strong>
+                                    <p>Enter any locator (XPath, CSS, ID, Name) in the input field to test it. The extension will show match count and highlight matching elements.</p>
+                                </div>
+                                <div class="manual-step">
+                                    <strong>3. Save Locators:</strong>
+                                    <p>After generating or testing a locator, enter a name and click "Save" to store it for future use.</p>
+                                </div>
+                                <div class="manual-step">
+                                    <strong>4. Manage Saved Locators:</strong>
+                                    <p>Use the search box to find saved locators. Click any saved locator to test it. Use export/import to share with team members.</p>
+                                </div>
+                                <div class="manual-step">
+                                    <strong>5. Copy Locators:</strong>
+                                    <p>Click the copy button next to any generated locator to copy it to clipboard for use in your automation scripts.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="about-section">
+                            <h4>⌨️ Keyboard Shortcuts</h4>
+                            <div class="shortcuts">
+                                <div class="shortcut-item">
+                                    <kbd>Ctrl+Shift+X</kbd>
+                                    <span>Toggle Capture Mode</span>
+                                </div>
+                                <div class="shortcut-item">
+                                    <kbd>Escape</kbd>
+                                    <span>Exit Capture Mode</span>
+                                </div>
+                                <div class="shortcut-item">
+                                    <kbd>Enter</kbd>
+                                    <span>Evaluate locator in input field</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="about-section">
+                            <h4>🛠️ Supported Locator Types</h4>
+                            <div class="locator-types">
+                                <span class="locator-type">XPath</span>
+                                <span class="locator-type">CSS Selector</span>
+                                <span class="locator-type">Playwright</span>
+                                <span class="locator-type">JSPath</span>
+                                <span class="locator-type">jQuery</span>
+                                <span class="locator-type">ID</span>
+                                <span class="locator-type">Name</span>
+                                <span class="locator-type">Class</span>
+                            </div>
+                        </div>
+                        
+                        <div class="about-footer">
+                            <p>© 2025 LocatorX Extension | Made for developers and testers</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <main class="main-content">
             <!-- Capture Mode & Theme Section -->
             <section class="options-section card">
                 <div class="section-header">
-                    <h2 class="section-title">Options & Status</h2>
+                    <h2 class="section-title">Options &amp; Status</h2>
                 </div>
                 <div class="options-grid">
                     <div class="control-item">
@@ -46,7 +138,7 @@
             <!-- Evaluate & Test Section -->
             <section class="input-evaluation-section card">
                 <div class="section-header">
-                    <h2 class="section-title">Evaluate & Test Locators</h2>
+                    <h2 class="section-title">Evaluate &amp; Test Locators</h2>
                     <button id="xpathHelpToggle" class="help-toggle" title="XPath Quick Reference" style="background: none; border: 1px solid #ccc; border-radius: 3px; margin-top: -6px; font-size: 10px; cursor: pointer;">❓</button>
 
                 </div>
@@ -99,7 +191,7 @@
                                 </div>
                                 <div class="help-section">
                                     <strong>🔗 CSS Combinators:</strong><br>
-                                    <code>div > p</code> - Direct child<br>
+                                    <code>div &gt; p</code> - Direct child<br>
                                     <code>div p</code> - Any descendant<br>
                                     <code>div + p</code> - Adjacent sibling<br>
                                     <code>div ~ p</code> - General sibling<br>
@@ -274,5 +366,7 @@
         </footer>
     </div>
     <script src="sidepanel.js"></script>
+
+
 </body>
 </html>

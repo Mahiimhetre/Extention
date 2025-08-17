@@ -1,5 +1,5 @@
 {
-  "name": "locatorx-extension",
+  "name": "Locator-X",
   "version": "1.0.0",
   "description": "Advanced Web Element Locator Generator Chrome Extension",
   "main": "src/sidepanel.js",
@@ -7,6 +7,5 @@
     "start": "echo 'Load extension in Chrome: chrome://extensions/ -> Load unpacked -> Select LocatorX folder'"
   },
   "keywords": ["chrome-extension", "locator", "selenium", "playwright", "automation"],
-  "author": "Mahesh Mhetre",
-  
+  "author": "Mahesh Mhetre"
 }

@@ -160,10 +160,47 @@ function initPanel() {
     let currentSuggestionIndex = -1;
     let availableSuggestions = []; // Store the currently displayed suggestions
 
+    // Initialize About dropdown
+    initAboutDropdown();
+    // About dropdown functionality - with retry mechanism
+    function initAboutDropdown() {
+  const aboutToggle = document.getElementById('aboutBtn');
+  const aboutDropdown = document.getElementById('aboutDropdown');
 
-    function sendMessageToContentScript(action, payload = {}) {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs.length > 0) {
+  if (aboutToggle && aboutDropdown) {
+    // Remove any previous listener
+    aboutToggle.removeEventListener('click', handleAboutClick);
+    aboutToggle.addEventListener('click', handleAboutClick);
+  } else {
+    setTimeout(initAboutDropdown, 100); // Retry if not yet loaded
+  }
+}
+
+function handleAboutClick(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Close other dropdowns
+  ['importDropdown', 'exportDropdown', 'clearAllDropdown', 'recycleDropdown'].forEach(id => {
+    const dropdown = document.getElementById(id);
+    if (dropdown) dropdown.style.display = 'none';
+  });
+
+  // Close help and hierarchy panels
+  const xpathHelp = document.getElementById('xpathHelp');
+  const hierarchyDropdown = document.getElementById('hierarchyDropdown');
+  if (xpathHelp) xpathHelp.style.display = 'none';
+  if (hierarchyDropdown) hierarchyDropdown.style.display = 'none';
+
+  // Toggle About dropdown
+  const aboutDropdown = document.getElementById('aboutDropdown');
+  const isVisible = aboutDropdown.style.display === 'block';
+  aboutDropdown.style.display = isVisible ? 'none' : 'block';
+}
+
+function sendMessageToContentScript(action, payload = {}) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length > 0) {
                 chrome.tabs.sendMessage(tabs[0].id, { action, ...payload }, (response) => {
                     if (chrome.runtime.lastError) {
                         console.warn('SIDEPANEL: Communication error:', chrome.runtime.lastError.message);
@@ -178,12 +215,8 @@ function initPanel() {
                             modeText.textContent = 'Capture Mode: OFF (Ctrl+Shift+X)';
                             chrome.storage.local.set({ captureMode: false });
                         }
-                    } else {
-                        console.log('SIDEPANEL: Message sent successfully. Action:', action, 'Response:', response);
                     }
                 });
-            } else {
-                console.warn('SIDEPANEL: No active tabs found to send message to.'); 
             }
         });
     }
@@ -220,8 +253,22 @@ function initPanel() {
             interceptingMsg.textContent = '';
             interceptingMsg.style.display = 'none';
         }
-        console.log('SIDEPANEL: All generated locator fields cleared and hidden.'); 
     }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // ✅ Load locator-evaluator.js dynamically
+        const evaluatorScript = document.createElement('script');
+        evaluatorScript.src = chrome.runtime.getURL('src/locator-evaluator.js');
+        evaluatorScript.onload = () => {
+            // locator-evaluator.js loaded
+        };
+        document.head.appendChild(evaluatorScript);
+
+        // ✅ Your existing setup code goes here
+        // e.g., setting up input listeners, UI elements, etc.
+    });
+
 
 
     // Enhanced XPath syntax validation and smart error messages
@@ -299,7 +346,7 @@ function initPanel() {
     }
     
     // Enhanced error display with multiple message types
-    function showXPathHelp(locator, errors, suggestions, tips, warnings) {
+    function showLocatorHelp(locator, errors, suggestions, tips, warnings) {
         let helpText = '';
         let statusClass = '';
         
@@ -369,14 +416,14 @@ function initPanel() {
     
     // Update XPath breakdown display
     function updateXPathBreakdown(steps) {
-        const xpathHelp = document.getElementById('xpathHelp');
-        if (!xpathHelp) return;
+        const locatorHelp = document.getElementById('locatorHelp');
+        if (!locatorHelp) return;
         
-        let breakdownSection = xpathHelp.querySelector('.breakdown-section');
+        let breakdownSection = locatorHelp.querySelector('.breakdown-section');
         if (!breakdownSection) {
             breakdownSection = document.createElement('div');
             breakdownSection.className = 'breakdown-section help-section';
-            xpathHelp.querySelector('.help-content').appendChild(breakdownSection);
+            locatorHelp.querySelector('.help-content').appendChild(breakdownSection);
         }
         
         breakdownSection.innerHTML = `
@@ -386,7 +433,7 @@ function initPanel() {
     }
     
     // Enhanced error display
-    function showXPathHelp(locator, errors, suggestions) {
+    function showLocatorHelp(locator, errors, suggestions) {
         let helpText = '';
         if (errors.length > 0) {
             helpText += '❌ ' + errors[0];
@@ -407,7 +454,7 @@ function initPanel() {
             if (locator.startsWith('/') || locator.startsWith('(')) {
                 const validation = validateXPath(locator);
                 if (validation.errors.length > 0 || validation.warnings.length > 0 || validation.suggestions.length > 0 || validation.tips.length > 0) {
-                    showXPathHelp(locator, validation.errors, validation.suggestions, validation.tips, validation.warnings);
+                    showLocatorHelp(locator, validation.errors, validation.suggestions, validation.tips, validation.warnings);
                 }
                 
                 // Show XPath breakdown for learning
@@ -431,15 +478,13 @@ function initPanel() {
         xpathSuggestionsContainer.style.display = 'none';
         availableSuggestions = []; // Clear stored suggestions
 
-        const query = locatorInput.value.trim();
-        console.log('SIDEPANEL: locatorInput changed. Query:', query); 
+        const query = locatorInput.value.trim(); 
 
         if (query.length > 0) {
             let suggestionTimeout;
             const DEBOUNCE_SUGGESTION_DELAY = 300;
             clearTimeout(suggestionTimeout);
-            suggestionTimeout = setTimeout(() => {
-                console.log('SIDEPANEL: Requesting suggestions for query:', query); 
+            suggestionTimeout = setTimeout(() => { 
                 // Show suggestions container if it was hidden
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs.length > 0) {
@@ -450,6 +495,22 @@ function initPanel() {
         }
 
         debouncedEvaluateLocator();
+    });
+
+    locatorInput.addEventListener('input', () => {
+        const locator = locatorInput.value.trim();
+        if (!locator) return;
+
+        totalMatchCount = 0; // Reset total matches count
+        // Clear previous highlights
+        sendMessageToContentScript('clearHighlights');
+
+        // Use multi-frame evaluator
+        if (typeof evaluateLocatorInAllFrames === 'function') {
+            evaluateLocatorInAllFrames(locator);
+        } else {
+            console.warn('Multi-frame evaluator not available yet');
+        }
     });
 
     // Keyboard navigation for suggestions
@@ -471,23 +532,22 @@ function initPanel() {
                     const selectedSuggestion = suggestionItems[currentSuggestionIndex].textContent;
                     locatorInput.value = selectedSuggestion;
                     hideSuggestions();
-                    debouncedEvaluateLocator(); // Evaluate the selected suggestion
-                    console.log('SIDEPANEL: Selected suggestion:', selectedSuggestion); 
+                    debouncedEvaluateLocator(); // Evaluate the selected suggestion 
                 } else {
                     // If no suggestion is highlighted, just evaluate the current input
                     debouncedEvaluateLocator();
-                    console.log('SIDEPANEL: Enter pressed, no suggestion highlighted. Evaluating current input.');
+
                 }
             } else if (e.key === 'Escape') {
                 e.preventDefault(); // Prevent browser default behavior
                 hideSuggestions();
-                console.log('SIDEPANEL: Escape pressed, hiding suggestions.'); 
+ 
             }
         } else if (e.key === 'Enter') {
             // If no suggestions are available, just evaluate the current input
             e.preventDefault(); // Prevent form submission
             debouncedEvaluateLocator();
-            console.log('SIDEPANEL: Enter pressed, no suggestions available. Evaluating current input.'); 
+ 
         }
     });
 
@@ -522,30 +582,30 @@ function initPanel() {
     }
     
     // Locator Help Toggle
-    const xpathHelpToggle = document.getElementById('xpathHelpToggle');
-    const xpathHelp = document.getElementById('xpathHelp');
-    if (xpathHelpToggle && xpathHelp) {
-        xpathHelpToggle.addEventListener('click', (e) => {
+    const locatorHelpToggle = document.getElementById('locatorHelpToggle');
+    const locatorHelp = document.getElementById('locatorHelp');
+    if (locatorHelpToggle && locatorHelp) {
+        locatorHelpToggle.addEventListener('click', (e) => {
             e.stopPropagation();
             // Close hierarchy dropdown if open
             if (hierarchyDropdown) hierarchyDropdown.style.display = 'none';
             
-            const isVisible = xpathHelp.style.display !== 'none';
-            xpathHelp.style.display = isVisible ? 'none' : 'block';
-            xpathHelpToggle.textContent = isVisible ? '❓' : '❌';
+            const isVisible = locatorHelp.style.display !== 'none';
+            locatorHelp.style.display = isVisible ? 'none' : 'block';
+            locatorHelpToggle.textContent = isVisible ? '❓' : '❌';
         });
         
         // Close help when clicking outside
         document.addEventListener('click', (e) => {
-            if (!xpathHelp.contains(e.target) && !xpathHelpToggle.contains(e.target)) {
-                xpathHelp.style.display = 'none';
-                xpathHelpToggle.textContent = '❓';
+            if (!locatorHelp.contains(e.target) && !locatorHelpToggle.contains(e.target)) {
+                locatorHelp.style.display = 'none';
+                locatorHelpToggle.textContent = '❓';
             }
         });
         
         // Help navigation
-        const helpNavBtns = xpathHelp.querySelectorAll('.help-nav-btn');
-        const helpTabs = xpathHelp.querySelectorAll('.help-tab');
+        const helpNavBtns = locatorHelp.querySelectorAll('.help-nav-btn');
+        const helpTabs = locatorHelp.querySelectorAll('.help-tab');
         
         helpNavBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -577,7 +637,7 @@ function initPanel() {
         }
         if (request.action === 'statusBar' && statusBar) {
             statusBar.textContent = request.text;
-            console.log('SIDEPANEL: Status bar updated:', request.text);
+
         }
         
         if (request.action === 'elementCaptured' || request.action === 'showXPathInfo') {
@@ -586,27 +646,7 @@ function initPanel() {
                 const capturedText = statusBar.textContent.replace('Hovering:', 'Captured:');
                 statusBar.textContent = capturedText;
             }
-            console.log('SIDEPANEL: Processing locator info for action:', request.action);
-            console.log('SIDEPANEL: Incoming locator data:', {
-                id: request.id,
-                name: request.name,
-                css: request.cssSelector,
-                relativeXPath: request.relativeXPath,
-                absoluteXPath: request.absoluteXPath,
-                playwright: request.playwrightLocator,
-                jspath: request.jspathLocator,
-                jquery: request.jqueryLocator
-            });
-            console.log('SIDEPANEL: Match counts:', {
-                id: request.idMatchCount,
-                css: request.cssMatchCount,
-                xpath: request.relativeXPathMatchCount
-            });
-            console.log('SIDEPANEL: Uniqueness flags:', {
-                id: request.idUnique,
-                css: request.cssUnique,
-                xpath: request.relativeXPathUnique
-            });
+
             
             // Show element hierarchy if available
             if (request.hierarchyData && request.permanent) {
@@ -708,7 +748,7 @@ function initPanel() {
         
         // Handle captureModeChanged from content.js
         if (request.action === 'captureModeChanged') {
-            console.log('SIDEPANEL: Received captureModeChanged. Enabled:', request.enabled);
+
             if (captureModeToggle) captureModeToggle.checked = !!request.enabled;
             if (modeText) modeText.textContent = `Capture Mode: ${request.enabled ? 'ON' : 'OFF'} (Ctrl+Shift+X)`;
             
@@ -724,9 +764,9 @@ function initPanel() {
                      hideSuggestions();
                      clearAndHideAllLocators();
                      if (statusBar) statusBar.textContent = 'Capture: OFF';
-                     console.log('SIDEPANEL: Capture mode turned OFF, clearing all fields.'); 
+ 
                 } else {
-                    console.warn('SIDEPANEL: Capture mode turned OFF, but locators are present from a recent capture.');
+
                     // Keep the current status bar text showing captured element
                 }
             } else { // If capture mode is turned ON, always clear previous state
@@ -734,7 +774,7 @@ function initPanel() {
                 hideSuggestions();
                 if (statusBar) statusBar.textContent = 'Capture: ON';
                 // clearAndHideAllLocators();
-                console.log('SIDEPANEL: Capture mode turned ON.'); 
+ 
             }
         }
         // Handle saved XPaths update from content.js
@@ -850,7 +890,7 @@ function initPanel() {
     function renderSuggestions(suggestions) {
         xpathSuggestionsContainer.innerHTML = '';
         if (suggestions && suggestions.length > 0) {
-            console.log('SIDEPANEL: Rendering suggestions:', suggestions.length, 'items'); // DEBUG
+
             suggestions.forEach((sug, index) => {
                 const div = document.createElement('div');
                 div.classList.add('suggestion-item');
@@ -977,7 +1017,7 @@ function initPanel() {
         allSavedLocators = result.savedXPaths || []; // Store all saved locators
         renderSavedXPaths(allSavedLocators); 
         clearAndHideAllLocators(); // Hide generated locators on initial load
-        console.log('SIDEPANEL: Initial state loaded. Capture Mode:', result.captureMode, 'Theme:', result.isDarkTheme); 
+ 
     });
 
     // Capture mode toggle event listener
@@ -1027,7 +1067,7 @@ function initPanel() {
         
         locatorInput.value = '';
         hideSuggestions();
-        console.log('SIDEPANEL: Capture mode toggle changed to', enabled);
+
     });
 
     // Theme toggle event listener
@@ -1036,7 +1076,7 @@ function initPanel() {
         chrome.storage.local.set({ isDarkTheme: isDark });
         themeText.textContent = `Theme: ${isDark ? 'Dark' : 'Light'}`;
         document.body.classList.toggle('dark-theme', isDark);
-        console.log('SIDEPANEL: Theme toggle changed to Dark:', isDark);
+
     });
 
     // Copy CSS Locator Button
@@ -1137,6 +1177,18 @@ function initPanel() {
         document.execCommand('copy');
         document.body.removeChild(textarea);
         showMessage(successMessage, 'status-green');
+
+        // ✅ Icon swap logic
+        const activeButton = document.activeElement;
+        const icon = activeButton?.querySelector('i');
+        if (icon) {
+            icon.classList.remove('bi-clipboard');
+            icon.classList.add('bi-check2-circle');
+            setTimeout(() => {
+            icon.classList.remove('bi-check2-circle');
+            icon.classList.add('bi-clipboard');
+            }, 1000);
+        }
     }
 
     function addGeneratedLocatorClickListeners() {
@@ -1314,7 +1366,7 @@ function initPanel() {
                         <span class="xpath-output" data-xpath-type="${xpathEntry.type.replace(/\s+/g, '-').toLowerCase()}">${xpathEntry.locator}</span>
                         ${xpathEntry.matchCount !== undefined ? `<span class="match-count" style="font-size: 7px; color: var(--secondary-text); margin-left: 5px;">(${xpathEntry.matchCount})</span>` : ''}
                         <button class="copy-button" data-copy-xpath="${xpathEntry.locator}" title="Copy Locator">
-                            <svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <i class="bi bi-clipboard"></i>
                         </button>
                     </div>
                 </div>
@@ -1475,10 +1527,10 @@ function initPanel() {
 
     function showElementHierarchy(elementData) {
         currentHierarchyData = elementData;
-        if (hierarchyDropdownToggle) {
-            hierarchyDropdownToggle.style.display = 'block';
-            console.log('Hierarchy toggle shown');
-        }
+        // if (hierarchyDropdownToggle) {
+        //     hierarchyDropdownToggle.style.display = 'block';
+        //     console.log('Hierarchy toggle shown');
+        // }
         renderHierarchyTree(elementData);
     }
 
@@ -1492,9 +1544,9 @@ function initPanel() {
         hierarchyDropdownToggle.addEventListener('click', (e) => {
             e.stopPropagation();
             // Close help popup if open
-            if (xpathHelp) {
-                xpathHelp.style.display = 'none';
-                if (xpathHelpToggle) xpathHelpToggle.textContent = '❓';
+            if (locatorHelp) {
+                locatorHelp.style.display = 'none';
+                if (locatorHelpToggle) locatorHelpToggle.textContent = '❓';
             }
             
             const isVisible = hierarchyDropdown.style.display === 'block';
@@ -1767,12 +1819,50 @@ function toggleCaptureModeInAllFrames(enabled) {
 
 // Evaluate a locator in all frames (main frame + iframes) and update the UI with the total match count
 function evaluateLocatorInAllFrames(locator) {
+    if (!locator?.trim()) return;
+    
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (!tabs.length) return;
         const tabId = tabs[0].id;
+        
+        // Add error handling for webNavigation API
+        if (!chrome.webNavigation) {
+            // Fallback to single frame evaluation
+            chrome.tabs.sendMessage(tabId, {action: 'evaluateLocator', locator: locator}, function(response) {
+                const matchCountElem = document.getElementById('matchCount');
+                if (matchCountElem) {
+                    const count = response?.count || 0;
+                    matchCountElem.textContent = count + ' matches';
+                }
+            });
+            return;
+        }
+        
         chrome.webNavigation.getAllFrames({tabId}, function(frames) {
-            let totalMatches = 0;
+            if (chrome.runtime.lastError) {
+                // Fallback to single frame evaluation
+                chrome.tabs.sendMessage(tabId, {action: 'evaluateLocator', locator: locator}, function(response) {
+                    const matchCountElem = document.getElementById('matchCount');
+                    if (matchCountElem) {
+                        const count = response?.count || 0;
+                        matchCountElem.textContent = count + ' matches';
+                    }
+                });
+                return;
+            }
+            
+            let totalMatchCount = 0;
             let responses = 0;
+            const frameCount = frames?.length || 0;
+            
+            if (frameCount === 0) {
+                const matchCountElem = document.getElementById('matchCount');
+                if (matchCountElem) {
+                    matchCountElem.textContent = '0 matches';
+                }
+                return;
+            }
+            
             frames.forEach(frame => {
                 chrome.tabs.sendMessage(
                     tabId,
@@ -1781,13 +1871,13 @@ function evaluateLocatorInAllFrames(locator) {
                     function(response) {
                         responses++;
                         if (response && typeof response.count === 'number') {
-                            totalMatches += response.count;
+                            totalMatchCount += response.count;
                         }
                         // When all frames have responded, update the UI
-                        if (responses === frames.length) {
+                        if (responses === frameCount) {
                             const matchCountElem = document.getElementById('matchCount');
                             if (matchCountElem) {
-                                matchCountElem.textContent = totalMatches + ' matches';
+                                matchCountElem.textContent = totalMatchCount + ' matches';
                             }
                         }
                     }

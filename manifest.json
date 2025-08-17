@@ -1,15 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Extention",
+  "name": "Locator-X",
   "short_name": "Locator-X",
   "author": "Mr.Mahesh",
-  "version": "1",
-  "description": "Advanced XPath and CSS selector generator with interception detection.",
+  "version": "1.0.0",
+  "description": "Advanced XPath and CSS selector generator with shadow DOM and iframe support.",
   "permissions": [
     "activeTab",
     "scripting",
     "storage",
-    "sidePanel"
+    "sidePanel",
+    "contextMenus",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -54,7 +56,11 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/highlight.css", "src/content-iframe.js"],
+      "resources": [
+        "src/highlight.css", 
+        "src/content-iframe.js",
+        "src/locator-evaluator.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
